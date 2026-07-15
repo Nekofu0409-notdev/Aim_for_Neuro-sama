@@ -1,0 +1,1 @@
+from .global_var import Globals_Var as G_Var

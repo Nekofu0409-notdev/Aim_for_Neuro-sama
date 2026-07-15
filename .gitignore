@@ -1,0 +1,7 @@
+.env
+__pycache__
+DB/
+src/llm/LLM_server_models/
+src/voice/stt_src/STT_models/
+src/voice/tts_src/TTS_models/
+bat/AivisSpeech/models/
