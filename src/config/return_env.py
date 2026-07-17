@@ -20,10 +20,12 @@ THINK = json.loads(os.environ.get("think", "false").lower())
 TOP_K = int(os.environ.get("top_k", "5"))
 
 
+#Discord関連
+TOKEN = os.environ.get("Token", "please_set")
+
+
 #音声認識
 STT = json.loads(os.environ.get("STT", "false").lower())
-AUDIO_INPUT_ID = int(os.environ.get("audio_input_ID", None))
-DIARIZATION = json.loads(os.environ.get("Diarization", "false").lower())
 
 MOONSHINE = json.loads(os.environ.get("moonshine_voice", "false").lower())
 MOONSHINE_PATH = os.environ.get("moonshine_model", "please_set")
@@ -34,7 +36,6 @@ QWENASR = json.loads(os.environ.get("Qwen3-ASR", "false").lower())
 
 #音声合成
 TTS = json.loads(os.environ.get("TTS", "false").lower())
-AUDIO_OUTPUT_ID = int(os.environ.get("audio_output_ID", None))
 
 AIVISSPEECH = json.loads(os.environ.get("AivisSpeech", "false").lower())
 AIVISSPEECH_PORT = os.environ.get("AivisSpeech_Port", "please_set")

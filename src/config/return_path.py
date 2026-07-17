@@ -20,13 +20,5 @@ MMEMO_PATH = join(DB_PATH, 'middle_memory.txt')
 
 LLMSERVER_FILE_PATH = join(BASE_DIR, "src", "llm", "LLM_server_models")
 
-STT_MODELS = join(BASE_DIR, "src", "voice", "STT_models")
-
-AIVIS_EXE = join(
-    BASE_DIR,
-    "src", "voice",
-    "TTS_models",
-    "AivisSpeech",
-    "Windows-x64",
-    "run.exe"
-)
+STT_SRC = join(BASE_DIR, "src", "voice", "stt_src")
+TTS_SRC = join(BASE_DIR, "src", "voice", "tts_src")
