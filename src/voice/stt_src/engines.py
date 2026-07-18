@@ -1,11 +1,17 @@
+from os.path import join
 from moonshine_voice import MicTranscriber, TranscriptEventListener, ModelArch
 
+# 自作関数
+from src.config import STT_SRC
 
 
-class Moonshine():
+
+M_MODEL_PATH = join(STT_SRC, "STT_models", "moonshine", "model", "base-ja")
+M_MODEL_ARCH = "base"
+
+class Moonshine:
     def __init__(self):
-        self.model_path = MOONSHINE_PATH
-        self.model_arch = None
+        pass
 
 
     async def run_moon(self):

@@ -9,6 +9,7 @@ dependencies = [
     "discord-ext-voice-recv>=0.5.2a179",
     "discord-py[voice]>=2.7.1",
     "dotenv>=0.9.9",
+    "moonshine-voice>=0.0.69",
     "pynacl>=1.5.0",
     "scipy>=1.17.1",
     "silero-vad>=6.2.1",

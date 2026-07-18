@@ -1,6 +1,7 @@
 from discord.ext import commands, voice_recv
 import asyncio
 import numpy as np
+from queue import Queue
 from scipy.signal import resample_poly
 
 
@@ -8,20 +9,26 @@ from scipy.signal import resample_poly
 CHUNK = 512
 
 class AudioSink(voice_recv.AudioSink):
-    def __init__(self, sources: dict[int, asyncio.Queue], main_loop):
+    def __init__(self, sources: dict[int, tuple[str, Queue]], main_loop):
         super().__init__()
         self.sources = sources
         self.buffers: dict[int, np.ndarray] = {}
         self.loop = main_loop
 
 
-    def push(self, user_id, pcm):
+    def push(self, user_id, user_name, pcm):
         if user_id not in self.sources:
-            self.sources[user_id] = asyncio.Queue()
-            self.buffers[user_id] = np.array([], dtype = np.float32)
+            self.sources[user_id] = (user_name, Queue())
+
+        if user_id not in self.buffers:
+            self.buffers[user_id] = np.array([], dtype=np.float32)
 
         audio = np.frombuffer(pcm, dtype = np.int16)
         audio = audio.astype(np.float32) / 32768.0
+
+        # 2channel -> 1channel
+        stereo = audio.reshape(-1, 2)
+        audio = stereo[:, 0]
 
         # 48000Hz -> 16000Hz
         audio = resample_poly(audio, 1, 3)
@@ -31,7 +38,7 @@ class AudioSink(voice_recv.AudioSink):
         while len(self.buffers[user_id]) >= CHUNK:
             block = self.buffers[user_id][:CHUNK]
             self.buffers[user_id] = self.buffers[user_id][CHUNK:]
-            self.sources[user_id].put_nowait(block)
+            self.sources[user_id][1].put_nowait(block)
 
 
     def wants_opus(self) -> bool:
@@ -45,9 +52,7 @@ class AudioSink(voice_recv.AudioSink):
         if user.bot:
             return
 
-        user_id = user.id
-        pcm = data.pcm
-        self.loop.call_soon_threadsafe(self.push, user_id, pcm)
+        self.loop.call_soon_threadsafe(self.push, user.id, user.name, data.pcm)
         
 
     def cleanup(self):
@@ -56,7 +61,7 @@ class AudioSink(voice_recv.AudioSink):
 
 
 class Order(commands.Cog):
-    def __init__(self, client, sources: dict[int, asyncio.Queue]):
+    def __init__(self, client, sources: dict[int, tuple[str, Queue]]):
         self.client = client
         self.sources = sources
 

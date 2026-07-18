@@ -1,50 +1,22 @@
-import time
-import asyncio
 import numpy as np
-from os.path import join
-from scipy.io import wavfile
+import asyncio
+from queue import Queue, Empty
+from typing import Callable, Awaitable
 from silero_vad import load_silero_vad, VADIterator
 
-# 自作関数
-from .inference import predict_endpoint
-from src.config import STT_SRC
 
 RATE = 16000
 THRETHOLD = 0.5
-SILENCE_DURATION = 200
+SILENCE_DURATION = 300
 PAD = 100
 CHUNK = 512
 
 
-
-def _process_segment(segment_audio_f32: np.ndarray):
-    i += 1
-    wavfile.write(
-        join(STT_SRC, "output_waves", f"sample{i}.wav"),
-        RATE,
-        (segment_audio_f32 * 32767.0).astype(np.int16)
-    )
-
-    dur_sec = segment_audio_f32.size / RATE
-    print(f"Processing segment ({dur_sec:.2f}s)...")
-
-    t0 = time.perf_counter()
-    result = predict_endpoint(segment_audio_f32)  # expects 16 kHz float32 mono
-    dt_ms = (time.perf_counter() - t0) * 1000.0
-
-    pred = result.get("prediction", 0)
-    prob = result.get("probability", float("nan"))
-
-    print("--------")
-    print(f"Prediction: {'Complete' if pred == 1 else 'Incomplete'}")
-    print(f"Probability of complete: {prob:.4f}")
-    print(f"Inference time: {dt_ms:.2f} ms")
-
-
-
 class silero_VAD:
-    def __init__(self, audio: asyncio.Queue):
-        self.audio = audio
+    def __init__(self, voice: Queue):
+        self.voice = voice
+        self.audio = Queue()
+        asyncio.create_task(self.fill())
 
         self.model = load_silero_vad(onnx = True)
         self.iter = VADIterator(
@@ -55,47 +27,65 @@ class silero_VAD:
             speech_pad_ms = PAD,
             )
         
-        
-    async def predict_turn(self) -> None:
-        speaking = False
-        buffer = []
+        self.speaking = False
+        self.buffer = []
 
+
+    async def fill(self):
         try:
             while True:
                 try:
-                    f32 = self.audio.get_nowait()
-                except asyncio.QueueEmpty:
+                    f32 = self.voice.get_nowait()
+                except Empty:
                     f32 = np.zeros(CHUNK, dtype = np.float32)
+                self.audio.put_nowait(f32)
+                await asyncio.sleep(CHUNK / RATE)
                 
-                # None -> fin
-                if f32 is None:
-                    break
-
-                event = self.iter(f32)
-
-                if event is not None:
-                    if "start" in event:
-                        speaking = True
-
-                    if "end" in event:
-                        speaking = False
-                        buffer.append(f32)
-                        _process_segment(np.concatenate(buffer, dtype = np.float32))
-                        buffer.clear()
-
-                if speaking:
-                    buffer.append(f32)
-
         except asyncio.CancelledError:
             raise
+        
+        
+    def vad(self) -> np.ndarray | None:
+        try:
+            f32 = self.audio.get_nowait()
+        except Empty:
+            return None
 
-        except Exception as e:
-            print(f"predict_turnエラー: {e}")
+        event = self.iter(f32)
 
-        finally:
-            pass
+        if event is not None:
+            if "start" in event:
+                self.speaking = True
+
+            if "end" in event:
+                self.speaking = False
+                self.buffer.append(f32)
+                speech = np.concatenate(self.buffer).astype(np.float32)
+                self.buffer.clear()
+                return speech
+
+        if self.speaking:
+            self.buffer.append(f32)
+
+        return None
 
 
 
-if __name__ == "__main__":
-    pass
+class VADs_Operater:
+    def __init__(self, mic: dict[int, tuple[str, Queue]]):
+        self.mic = mic
+        self.vads: dict[int, silero_VAD] = {}
+
+
+    def operater(self, callback: Callable[[int, str, np.ndarray], Awaitable[None]]) -> None:
+        for user_id in self.mic:
+            user_name, queue = self.mic[user_id]
+
+            if user_id not in self.vads:
+                self.vads[user_id] = silero_VAD(queue)
+
+            vad = self.vads[user_id]
+            chunk = vad.vad()
+
+            if chunk is not None:
+                asyncio.create_task(callback(user_id, user_name, chunk))

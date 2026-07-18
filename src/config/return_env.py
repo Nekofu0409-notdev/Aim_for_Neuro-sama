@@ -28,9 +28,6 @@ TOKEN = os.environ.get("Token", "please_set")
 STT = json.loads(os.environ.get("STT", "false").lower())
 
 MOONSHINE = json.loads(os.environ.get("moonshine_voice", "false").lower())
-MOONSHINE_PATH = os.environ.get("moonshine_model", "please_set")
-MOONSHINE_ARCH = os.environ.get("moonshine_arch", "please_set")
-
 QWENASR = json.loads(os.environ.get("Qwen3-ASR", "false").lower())
 
 
