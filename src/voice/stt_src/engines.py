@@ -1,59 +1,33 @@
+import asyncio
+import numpy as np
+from typing import Text
 from os.path import join
-from moonshine_voice import MicTranscriber, TranscriptEventListener, ModelArch
+from moonshine_voice import Transcriber, ModelArch
 
 # 自作関数
 from src.config import STT_SRC
 
 
 
+RATE = 16000
+
 M_MODEL_PATH = join(STT_SRC, "STT_models", "moonshine", "model", "base-ja")
-M_MODEL_ARCH = "base"
+M_MODEL_ARCH = ModelArch.BASE
 
-class Moonshine:
+class Moonshine_Voice:
     def __init__(self):
-        pass
-
-
-    async def run_moon(self):
-
-        if MOONSHINE_ARCH == "base":
-            self.model_arch = ModelArch.BASE
-        elif MOONSHINE_ARCH == "tiny":
-            self.model_arch = ModelArch.TINY
-
-        mic_transcriber = MicTranscriber(
-            model_path = self.model_path,
-            model_arch = self.model_arch,
-            update_interval=1.0, 
-            device=84,
-            samplerate=44100, 
-            channels=1,
-            blocksize=32768,
-            options={
-                "vad_max_segment_duration": "15.0",
-                "max_tokens_per_second": "13.0",
-            }
+        self.transcriber = Transcriber(
+            model_path = M_MODEL_PATH,  model_arch = M_MODEL_ARCH
         )
 
-        class MyListener(TranscriptEventListener):
-            def __init__(self):
-                self.ga = py.globals.global_var.Globals_Add()
-
-            def on_line_completed(self, event):
-                clean_text = event.line.text.replace(" ", "")
-                asyncio.run(self.ga.add_stt(clean_text))
-
-        mic_transcriber.add_listener(MyListener())
-        mic_transcriber.start()
-
-        try:
-            while True:
-                await asyncio.sleep(0.1)
-
-        except KeyboardInterrupt:
-            mic_transcriber.stop()
-            mic_transcriber.close()
-            raise
+    async def moonshine(self, chunk: np.ndarray) -> Text:
+        transcript = await asyncio.to_thread(
+            self.transcriber.transcribe_without_streaming, chunk, RATE, 0
+        )
+        for line in transcript.lines:
+            print(
+                f"Transcript: [{line.start_time:.2f}s - {line.start_time + line.duration:.2f}s] {line.text}"
+            )
 
 
 

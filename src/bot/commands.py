@@ -24,11 +24,12 @@ class AudioSink(voice_recv.AudioSink):
             self.buffers[user_id] = np.array([], dtype=np.float32)
 
         audio = np.frombuffer(pcm, dtype = np.int16)
-        audio = audio.astype(np.float32) / 32768.0
 
         # 2channel -> 1channel
         stereo = audio.reshape(-1, 2)
-        audio = stereo[:, 0]
+        audio = stereo.mean(axis = 1)
+
+        audio = audio.astype(np.float32) / 32768.0
 
         # 48000Hz -> 16000Hz
         audio = resample_poly(audio, 1, 3)
