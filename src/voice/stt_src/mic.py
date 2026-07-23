@@ -5,18 +5,18 @@ from typing import Callable, Awaitable
 from silero_vad import load_silero_vad, VADIterator
 
 
+
 RATE = 16000
 THRETHOLD = 0.5
 SILENCE_DURATION = 300
 PAD = 100
 CHUNK = 512
 
-
 class silero_VAD:
     def __init__(self, voice: Queue):
         self.voice = voice
         self.audio = Queue()
-        asyncio.create_task(self.fill())
+        self.task = asyncio.create_task(self.fill())
 
         self.model = load_silero_vad(onnx = True)
         self.iter = VADIterator(

@@ -1,4 +1,6 @@
 .env
+user_id.json
+.vscode
 __pycache__
 DB/
 src/llm/LLM_server_models/

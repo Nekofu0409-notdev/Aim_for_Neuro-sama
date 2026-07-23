@@ -9,16 +9,17 @@ if getattr(sys, "frozen", False):
 else:
     BASE_DIR = abspath(join(dirname(__file__), '..', '..'))
 
-EXAMPLE_PATH = join(BASE_DIR, '.env.example')
+ENV_EXAMPLE_PATH = join(BASE_DIR, '.env.example')
 ENV_PATH = join(BASE_DIR, '.env')
-SP_PATH = join(BASE_DIR, 'SystemPrompt.txt')
+
+SYSTEMPROMPT_PATH = join(BASE_DIR, 'SystemPrompt.txt')
+USERID_PATH = join(BASE_DIR, 'user_id.json')
 
 DB_PATH = join(BASE_DIR, 'DB')
 CHROMA_PATH = join(DB_PATH, 'chroma.sqlite3')
 SMEMO_PATH = join(DB_PATH, 'short_memory.jsonl')
-MMEMO_PATH = join(DB_PATH, 'middle_memory.txt')
 
 LLMSERVER_FILE_PATH = join(BASE_DIR, "src", "llm", "LLM_server_models")
 
-STT_SRC = join(BASE_DIR, "src", "voice", "stt_src")
-TTS_SRC = join(BASE_DIR, "src", "voice", "tts_src")
+STT_SRC_PATH = join(BASE_DIR, "src", "voice", "stt_src")
+TTS_SRC_PATH = join(BASE_DIR, "src", "voice", "tts_src")

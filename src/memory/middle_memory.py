@@ -1,4 +1,3 @@
-#py\memory\middle_memory.py
 #現在必要なし
 
 # import os

@@ -1,6 +1,6 @@
 @echo off
 
-cd ..\..\src\voice\TTS_models\AivisSpeech\Windows-x64
+cd ..\..\src\voice\tts_src\TTS_models\AivisSpeech\Windows-x64
 
 start "AivisSpeech" run.exe ^
   --use_gpu ^

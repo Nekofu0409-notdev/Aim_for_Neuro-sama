@@ -1,17 +1,20 @@
+import io
+import httpx
 import asyncio
 import numpy as np
 from typing import Text
 from os.path import join
+import scipy.io.wavfile as wav
 from moonshine_voice import Transcriber, ModelArch
 
 # 自作関数
-from src.config import STT_SRC
+from src.config import STT_SRC_PATH, QWEN_PORT
 
 
 
 RATE = 16000
 
-M_MODEL_PATH = join(STT_SRC, "STT_models", "moonshine", "model", "base-ja")
+M_MODEL_PATH = join(STT_SRC_PATH, "STT_models", "moonshine", "model", "base-ja")
 M_MODEL_ARCH = ModelArch.BASE
 
 class Moonshine_Voice:
@@ -31,9 +34,17 @@ class Moonshine_Voice:
 
 
 
-class Qwen3_ASR():
-    def __init__(self):
-        pass
+async def qwen3_asr(chunk: np.ndarray) -> Text:
+    buf = io.BytesIO()
+    wav.write(buf, RATE, chunk)
+    buf.seek(0)
 
-    async def run_qwen3():
-        pass
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            f"http://127.0.0.1:{QWEN_PORT}/v1/audio/transcriptions",
+            files = {"file": ("audio.wav", buf, "audio/wav"),},
+            data = {"model": "qwen3-asr", "language": "ja"}
+        )
+
+    data = res.json()
+    return data["text"]
