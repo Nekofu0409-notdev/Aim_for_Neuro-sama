@@ -1,12 +1,13 @@
 import asyncio
+from dataclasses import dataclass, field
 from queue import Queue
 
 
-class Globals_Var:
-    def __init__(self):
-        self.stt_q = asyncio.Queue()
-        self.tts_q = asyncio.Queue()
+@dataclass
+class Global_Var:
+    mic: dict[int, tuple[str, Queue]] = field(default_factory = dict)
+    vad_q = Queue()
 
-        self.wav_q = Queue()
-
-        self.mic: dict[int, tuple[str, Queue]] = {}
+    stt_q = asyncio.Queue()
+    tts_q = asyncio.Queue()
+    wav_q = Queue()

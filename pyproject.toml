@@ -5,19 +5,34 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "abliterix>=1.12.2",
+    "bitsandbytes>=0.46.1",
     "chromadb>=1.5.9",
+    "datasets>=4.7,<5.0",
     "discord-ext-voice-recv>=0.5.2a179",
     "discord-py[voice]>=2.7.1",
     "dotenv>=0.9.9",
-    "huggingface-hub>=1.23.0",
     "moonshine-voice>=0.0.69",
     "openai>=2.46.0",
+    "peft>=0.20.0",
     "prompt-toolkit>=3.0.52",
     "pynacl>=1.5.0",
     "scipy>=1.17.1",
     "silero-vad>=6.2.1",
-    "torch==2.11.0",
-    "torchaudio==2.11.0",
-    "torchvision==0.26.0",
+    "torch>=2.13.0",
+    "torchaudio>=2.11.0",
+    "torchvision>=0.28.0",
     "transformers>=5.14.1",
+    "triton-xpu==3.7.2",
 ]
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+torchaudio = { index = "pytorch" }
+torchvision = { index = "pytorch" }
+triton-xpu = { index = "pytorch" }
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/xpu"
+explicit = true

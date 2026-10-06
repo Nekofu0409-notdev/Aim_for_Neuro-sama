@@ -3,7 +3,6 @@ user_id.json
 .vscode
 __pycache__
 DB/
-src/llm/LLM_server_models/
-src/voice/stt_src/STT_models/
-src/voice/tts_src/TTS_models/
+models/
 bat/AivisSpeech/models/
+src/tuning/

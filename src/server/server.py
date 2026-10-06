@@ -1,142 +1,137 @@
-from os.path import join
 import asyncio
-import atexit
 import subprocess
-import signal
 
 #自作関数
 from src.config import (
-    LLM_PORT,
-    LLM_MODEL,
-    LLMSERVER_FILE_PATH,
+    GPU_LAYERS,
+    KOBOLD_EXE_PATH,
     LLM_HOST,
-
-    AIVISSPEECH,
-    AIVIS_EXE,
-    AIVISSPEECH_PORT,
-
-    TTS,
+    LLM_MODEL_PATH,
+    LLM_PORT,
+    STT_EXE_PATH,
+    TTS_EXE_PATH,
+    TTS_PORT,
 )
 
 
-
-class OpenAI_Server():
+class OpenAI_Server:
     def __init__(self):
-        self.exe_path = join(LLMSERVER_FILE_PATH, "koboldcpp", "koboldcpp.exe")
-        self.port = LLM_PORT
-        self.model_path = join(LLMSERVER_FILE_PATH, "LLM_models", LLM_MODEL)
         self.process = None
-
-        if LLM_HOST:
-            self.host = "0.0.0.0"
-        else:
-            self.host = "localhost"
 
 
     async def start(self):
         cmd = [
-            self.exe_path,
-            "--model", self.model_path,
+            KOBOLD_EXE_PATH,
+            "--model", LLM_MODEL_PATH,
             "--contextsize", "16384",
-            "--gpulayers", "0",
             "--smartcache",
-            "--port", self.port,
-            "--host", self.host,
-            "--multiuser",
-            "--gendefaults", '{"max_tokens":4096}'
+            "--port", LLM_PORT,
+            "--host", LLM_HOST,
+            "--gpulayers", GPU_LAYERS,
+            "--gendefaults", '{"max_tokens":4096}',
+            "--usevulkan",
         ]
-        
+
         self.process = await asyncio.create_subprocess_exec(
             *cmd,
-            stdout = subprocess.DEVNULL,
-            stderr = subprocess.DEVNULL,
-            creationflags = subprocess.CREATE_NO_WINDOW,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW,
             # デバッグ用
             # creationflags = subprocess.CREATE_NEW_CONSOLE | subprocess.CREATE_NEW_PROCESS_GROUP,
+            # stdout=None,
+            # stderr=None,
         )
-        
-        atexit.register(self.stop)
 
-    
+
     def stop(self):
         if self.process:
             subprocess.run([
-                "taskkill",
-                "/PID", str(self.process.pid),
-                "/T",
-                "/F"
-            ])
+                "taskkill", "/PID", str(self.process.pid), "/T", "/F"],
+                check=False
+            )
 
 
 
-class AivisSpeech_Server():
+class STT_Server:
     def __init__(self):
-        self.exe_path = AIVIS_EXE
-        self.port = AIVISSPEECH_PORT
         self.process = None
 
 
     async def start(self):
         cmd = [
-            self.exe_path,
-            "--use_gpu",
-            "--port", self.port,
+            STT_EXE_PATH,
+            "--config", "server.json"
         ]
-        
+
         self.process = await asyncio.create_subprocess_exec(
             *cmd,
-            stdout = subprocess.DEVNULL,
-            stderr = subprocess.DEVNULL,
-            creationflags = subprocess.CREATE_NO_WINDOW,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW,
             # デバッグ用
             # creationflags = subprocess.CREATE_NEW_CONSOLE | subprocess.CREATE_NEW_PROCESS_GROUP,
+            # stdout=None,
+            # stderr=None,
         )
-        
-        atexit.register(self.stop)
 
-    
+
     def stop(self):
         if self.process:
             subprocess.run([
-                "taskkill",
-                "/PID", str(self.process.pid),
-                "/T",
-                "/F"
-            ])
+                "taskkill", "/PID", str(self.process.pid), "/T", "/F"],
+                check=False
+            )
 
 
 
-class All_Run():
+class TTS_Server:
     def __init__(self):
-        self.oas = OpenAI_Server()
-        self.ass = AivisSpeech_Server()
-
-        self.aivis = AIVISSPEECH
-        self.tts = TTS
-
-    async def run(self):
-        await self.oas.start()
-
-        if self.tts:
-            if self.aivis:
-                await self.ass.start()
+        self.process = None
 
 
+    async def start(self):
+        cmd = [
+            TTS_EXE_PATH,
+            "--use_gpu",
+            "--port", TTS_PORT,
+        ]
 
-class Debug():
-    def __init__(self):
-        self.oas = OpenAI_Server()
-        self.ass = AivisSpeech_Server()
+        self.process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            # デバッグ用
+            # creationflags = subprocess.CREATE_NEW_CONSOLE | subprocess.CREATE_NEW_PROCESS_GROUP,
+            # stdout=None,
+            # stderr=None,
+        )
 
-    async def openai(self):
-        await self.oas.start()
-        await asyncio.sleep(20)
 
-    async def aivis(self):
-        await self.ass.start()
-        await asyncio.sleep(20)
+    def stop(self):
+        if self.process:
+            subprocess.run([
+                "taskkill", "/PID", str(self.process.pid), "/T", "/F"],
+                check=False
+            )
 
 
 
 if __name__ == "__main__":
-    asyncio.run(Debug().openai())
+    async def debug():
+        oas = OpenAI_Server()
+        ss = STT_Server()
+        ts = TTS_Server()
+
+        await oas.start()
+        await ss.start()
+        await ts.start()
+
+        await asyncio.sleep(60)
+
+        oas.stop()
+        ss.stop()
+        ts.stop()
+
+    asyncio.run(debug())

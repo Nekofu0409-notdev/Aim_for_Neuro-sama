@@ -1,21 +1,21 @@
-import re
 import asyncio
+import re
+from contextlib import suppress
 from queue import Queue
-from typing import Text
 
 # 自作関数
 from .engines import AivisSpeech
 
 
-
 class Text_Division:
     def __init__(self, tts_q: asyncio.Queue):
+        self.id = None
         self.tts_q = tts_q
         self.before_text = ""
         self.pattern = r"(！？|？！|⁉|。|！|？|!|\?|\n)"
 
 
-    async def div(self) -> Text:
+    async def div(self) -> tuple[object, str, str | list]:
         while True:
             match = re.search(self.pattern, self.before_text)
 
@@ -23,9 +23,18 @@ class Text_Division:
                 last_chara = match.end()
                 out_text = self.before_text[:last_chara]
                 self.before_text = self.before_text[last_chara:]
-                return out_text
+                return (self.id, "assistant", out_text)
 
-            self.before_text += await self.tts_q.get()
+            self.id, role, text = await self.tts_q.get()
+
+            if role == "assistant":
+                self.before_text += text
+
+            elif role == "system":
+                if isinstance(text, list):
+                    return (self.id, "system", text)
+                elif text == "cancelled":
+                    self.before_text = ""
 
 
 
@@ -34,38 +43,39 @@ class TTS_Core:
         self.div = Text_Division(tts_q)
         self.aivis = AivisSpeech()
         self.wav_q = wav_q
+        self.task = None
 
-        # Debug
-        # self.i = 0
+
+    async def _turn_control(self, id: object, role: str, text: str | list):
+        if role == "assistant":
+            assert isinstance(text, str)
+            r_wav = await self.aivis.r_wav(text)
+            self.wav_q.put((id, r_wav))
+
+        elif role == "system":
+            self.wav_q.put((id, text))
 
 
     async def output(self) -> None:
-        text = await self.div.div()
-        r_json = await self.aivis.r_json(text)
-        r_wav = await self.aivis.r_wav(r_json)
-        self.wav_q.put_nowait(r_wav)
+        id, role, text = await self.div.div()
 
-        # Debug
-        # from src.config import TTS_SRC_PATH
-        # self.i += 1
-        # with open(f"{TTS_SRC_PATH}/output_waves/output{self.i}.wav", "wb") as f:
-        #     f.write(r_wav)
+        if self.task is not None:
+            await self.task
+
+        self.task = asyncio.create_task(self._turn_control(id, role, text))
 
 
     async def core(self):
-        try:
+        with suppress(asyncio.CancelledError):
             while True:
                 await self.output()
-
-        except asyncio.CancelledError:
-            raise
 
 
 
 if __name__ == "__main__":
-    from src.globals import Globals_Var
+    from src.globals import Global_Var
 
-    gv = Globals_Var()
+    gv = Global_Var()
     tc = TTS_Core(gv.tts_q, gv.wav_q)
 
     async def main():

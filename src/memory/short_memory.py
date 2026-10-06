@@ -1,12 +1,10 @@
 import json
-from typing import List
 
 #自作関数
 from src.config import SMEMO_PATH, SYSTEMPROMPT_PATH
 
+CONTEXT_LIMIT = 11   # 奇数のみ推奨(往復回数 × 2 - 1)
 
-
-CONTEXT_LIMIT = 11   # 奇数のみ(往復回数 × 2 - 1)
 
 def short_write(say: str, answer: str) -> None:
     with open(SMEMO_PATH, 'a', encoding = 'utf-8') as f:
@@ -33,7 +31,7 @@ def short_delete() -> None:
         with open(SMEMO_PATH, 'r', encoding = 'utf-8') as f:
             all_lines = f.readlines()
 
-        old_lines = all_lines[:-(CONTEXT_LIMIT - 1)] 
+        old_lines = all_lines[:-(CONTEXT_LIMIT - 1)]   # 後で使う
         keep_lines = all_lines[-(CONTEXT_LIMIT - 1):]
 
         with open(SMEMO_PATH, 'w', encoding = 'utf-8') as f:
@@ -47,9 +45,9 @@ class Create_Input:
             systemprompt = f.read().strip()
 
         self.sp = {'role': 'system', 'content': systemprompt}
-        
 
-    def create(self, say) -> List:
+
+    def create(self, say) -> list:
         messages = []
 
         #メッセージ作成
