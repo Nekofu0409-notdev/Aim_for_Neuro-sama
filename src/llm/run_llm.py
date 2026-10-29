@@ -4,15 +4,16 @@ import re
 from openai import AsyncOpenAI
 
 #自作関数
-from src.config import LLM_PORT, TTS
-from src.memory import Create_Input, short_delete
+from src.config import LLM_HOST, LLM_PORT
+from src.memory import Create_Input
 
 
 class Run_OpenAI:
     def __init__(self, tts_q: asyncio.Queue) -> None:
-        self.llm_port = f"http://localhost:{LLM_PORT}/v1"
-        self.llm_name = "empty"
-        self.api_key = "empty"
+        self.client = AsyncOpenAI(
+            base_url = f"http://{LLM_HOST}:{LLM_PORT}/v1",
+            api_key = "empty",
+        )
         self.create = Create_Input()
         self.tts_q = tts_q
         self.id = None
@@ -53,54 +54,42 @@ class Run_OpenAI:
         return content, doubt, doubt_text
 
 
-    async def run_openai(self, say):
+    async def run_openai(self):
         self.id = object()
-        client = AsyncOpenAI(
-            base_url = self.llm_port,
-            api_key = self.api_key,
-        )
-        messages = self.create.create(say)
-        short_delete()
+        messages = self.create.create()
 
         res = None
         doubt = False
         doubt_text = ""
         response = ""
 
-        try:
-            res = await client.responses.create(
-                model = self.llm_name,
-                input = messages,
-                stream = True,
-                reasoning={"effort": "none"},
-            )
+        res = await self.client.responses.create(
+            model = "empty",
+            input = messages,
+            stream = True,
+            reasoning={"effort": "none"},
+        )
 
-            print(f"user:\n{say}")
-            print("\nAI:")
+        print("AI:")
 
-            async for part in res:
-                if part.type != "response.output_text.delta":
-                    continue
+        async for part in res:
+            if part.type != "response.output_text.delta":
+                continue
 
-                content, doubt, doubt_text = self._process_content(part.delta, doubt, doubt_text)
-                if content is None:
-                    continue
+            content, doubt, doubt_text = self._process_content(part.delta, doubt, doubt_text)
+            if content is None:
+                continue
 
-                print(content, end="", flush=True)
-                response += content
+            print(content, end="", flush=True)
+            response += content
 
-                if TTS:
-                    await self.tts_q.put((self.id, "assistant", content))
+            await self.tts_q.put((self.id, "assistant", content))
 
-            if TTS:
-                await self.tts_q.put((self.id, "system", [say, response]))
+        await self.tts_q.put((self.id, "system", response))
 
-        except asyncio.CancelledError:
-            await self.tts_q.put((self.id, "system", "cancelled"))
-            if res is not None:
-                await res.close()
-            print(" cancelled.\n")
-            return "cancelled"
+
+    async def close(self):
+        await self.client.close()
 
 
 # 使用しない

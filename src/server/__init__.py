@@ -1,3 +1,2 @@
-from .server import OpenAI_Server, TTS_Server
-
-__all__ = ['OpenAI_Server', 'TTS_Server']
+from .server import *
+from .server_conf import *

@@ -22,4 +22,3 @@ STT_EXE_PATH = BASE_DIR / "models" / "STT_models" / "audio_cpp" / "audiocpp-vulk
 TTS_EXE_PATH = BASE_DIR / "models" / "TTS_models" / "AivisSpeech" / "Windows-x64" / "run.exe"
 
 FFMPEG_PATH = BASE_DIR / "models" / "ffmpeg" / "ffmpeg.exe"
-TTS_SRC_PATH = BASE_DIR / "src" / "voice" / "tts_src"

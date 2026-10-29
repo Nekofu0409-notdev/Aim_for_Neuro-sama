@@ -1,15 +1,21 @@
 import json
 
+from openai.types.responses import ResponseInputParam
+
 #自作関数
 from src.config import SMEMO_PATH, SYSTEMPROMPT_PATH
 
 CONTEXT_LIMIT = 11   # 奇数のみ推奨(往復回数 × 2 - 1)
 
 
-def short_write(say: str, answer: str) -> None:
-    with open(SMEMO_PATH, 'a', encoding = 'utf-8') as f:
-        f.write(json.dumps({'role': 'user', 'content': say}, ensure_ascii = False) + "\n")
-        f.write(json.dumps({'role': 'assistant', 'content': answer}, ensure_ascii = False) + "\n")
+def short_write_user(say: str) -> None:
+    with open(SMEMO_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"role": "user", "content": say}, ensure_ascii=False) + "\n")
+
+
+def short_write_assistant(response: str) -> None:
+    with open(SMEMO_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"role": "assistant", "content": response}, ensure_ascii=False) + "\n")
 
 
 def short_count() -> int:
@@ -43,25 +49,24 @@ class Create_Input:
     def __init__(self):
         with open(SYSTEMPROMPT_PATH, 'r', encoding = 'utf-8') as f:
             systemprompt = f.read().strip()
+        self.systemprompt = systemprompt
 
-        self.sp = {'role': 'system', 'content': systemprompt}
 
+    def create(self) -> list:
+        messages: ResponseInputParam = [
+            {"role": "system", "content": self.systemprompt}
+        ]
 
-    def create(self, say) -> list:
-        messages = []
-
-        #メッセージ作成
-        messages.append(self.sp)
         with open(SMEMO_PATH, 'r', encoding='utf-8') as f:
             for line in f:
                 messages.append(json.loads(line))
-        messages.append({'role': 'user', 'content': say})
 
         return messages
 
 
 
 if __name__ == "__main__":
-    short_write("a", "b")
+    short_write_user("a")
+    short_write_assistant("b")
     print(short_count())
     short_clear()

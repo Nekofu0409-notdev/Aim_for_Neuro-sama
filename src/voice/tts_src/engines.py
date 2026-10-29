@@ -41,3 +41,7 @@ class AivisSpeech:
         )
 
         return response.content
+
+
+    async def aclose(self):
+        await self.client.aclose()

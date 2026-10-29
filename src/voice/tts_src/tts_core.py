@@ -1,6 +1,5 @@
 import asyncio
 import re
-from contextlib import suppress
 from queue import Queue
 
 # 自作関数
@@ -15,7 +14,7 @@ class Text_Division:
         self.pattern = r"(！？|？！|⁉|。|！|？|!|\?|\n)"
 
 
-    async def div(self) -> tuple[object, str, str | list]:
+    async def div(self) -> tuple[object, str, str]:
         while True:
             match = re.search(self.pattern, self.before_text)
 
@@ -31,29 +30,25 @@ class Text_Division:
                 self.before_text += text
 
             elif role == "system":
-                if isinstance(text, list):
-                    return (self.id, "system", text)
-                elif text == "cancelled":
-                    self.before_text = ""
+                return (self.id, "system", text)
 
 
 
 class TTS_Core:
-    def __init__(self, tts_q: asyncio.Queue, wav_q: Queue):
+    def __init__(self, tts_q: asyncio.Queue, wav_q: asyncio.Queue):
         self.div = Text_Division(tts_q)
         self.aivis = AivisSpeech()
         self.wav_q = wav_q
         self.task = None
 
 
-    async def _turn_control(self, id: object, role: str, text: str | list):
+    async def _turn_control(self, id: object, role: str, text: str):
         if role == "assistant":
-            assert isinstance(text, str)
             r_wav = await self.aivis.r_wav(text)
-            self.wav_q.put((id, r_wav))
+            self.wav_q.put_nowait((id, r_wav))
 
         elif role == "system":
-            self.wav_q.put((id, text))
+            self.wav_q.put_nowait((id, text))
 
 
     async def output(self) -> None:
@@ -66,9 +61,12 @@ class TTS_Core:
 
 
     async def core(self):
-        with suppress(asyncio.CancelledError):
+        try:
             while True:
                 await self.output()
+
+        except asyncio.CancelledError:
+            await self.aivis.aclose()
 
 
 
@@ -86,9 +84,7 @@ if __name__ == "__main__":
             "人工知能は、少しだけ誇らしげに、そう呟いた。"
             "新しい旅が、ここから始まる。"
         )
-
         await tc.core()
-
 
     try:
         print("開始")

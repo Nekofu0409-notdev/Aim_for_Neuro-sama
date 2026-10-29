@@ -1,6 +1,7 @@
 .env
 user_id.json
 .vscode
+.zed
 __pycache__
 DB/
 models/

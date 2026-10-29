@@ -1,3 +1,4 @@
+import asyncio
 from queue import Queue
 from typing import cast
 
@@ -6,7 +7,6 @@ from discord.ext import commands
 
 # 自作関数
 from src.config import TOKEN
-from src.llm import LLM_Core
 
 from .commands import Order
 
@@ -15,9 +15,9 @@ intent.message_content = True
 intent.voice_states = True
 
 
-async def run_bot(sources: dict[int, tuple[str, Queue]], vad_q: Queue, llm_core: LLM_Core, wav_q: Queue) -> commands.Bot:
+async def run_bot(mic: dict[int, tuple[str, Queue]], wav_q: asyncio.Queue) -> commands.Bot:
     client = commands.Bot(
-        command_prefix="~",
+        command_prefix="-",
         intents=intent,
         cls=discord.ext.voice_recv.VoiceRecvClient,   # type: ignore[call-arg]
     )
@@ -27,7 +27,7 @@ async def run_bot(sources: dict[int, tuple[str, Queue]], vad_q: Queue, llm_core:
         print(f"ログイン: {client.user}")
         print("開始")
 
-    await client.add_cog(Order(sources, vad_q, llm_core, wav_q))
+    await client.add_cog(Order(mic, wav_q))
     await client.start(TOKEN)
 
     return client

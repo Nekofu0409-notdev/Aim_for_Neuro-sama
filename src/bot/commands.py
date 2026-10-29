@@ -1,9 +1,6 @@
 import asyncio
 import io
-import time
-import traceback
-from contextlib import suppress
-from queue import Empty, Queue
+from queue import Queue
 
 import discord
 import numpy as np
@@ -12,12 +9,10 @@ from scipy.signal import resample_poly
 
 # 自作関数
 from src.config import FFMPEG_PATH
-from src.llm import LLM_Core
-from src.memory import short_write
+
+# from src.memory import short_write
 
 CHUNK = 512
-CONVERSATION_BLANK = 1.5
-CONVERSATION_OVERLAP = 0.5
 
 
 
@@ -75,145 +70,54 @@ class AudioSink(voice_recv.AudioSink):
 
 
 class Wav_Player:
-    def __init__(self, vad_q: Queue, llm_core: LLM_Core, wav_q: Queue):
+    def __init__(self, wav_q: asyncio.Queue):
         self.vc = None
-        self.vad_q = vad_q
-        self.llm = llm_core
-        self.wav_q = wav_q
-        self.blank_start = time.monotonic()
-        self.talk_start = None
-        self.task = None
-        self.allow_id = None
         self.id = None
-        self.pending_wavs = []
+        self.wav_q = wav_q
 
 
     def set_vc(self, vc):
         self.vc = vc
-        if self.task is None or self.task.done():
-            self.task = asyncio.create_task(self.run())
 
 
-    async def _wait(self) -> bytes:
-        assert self.vc is not None
-        count = 0
-        speaking = False
-
+    async def play(self):
         while True:
-            try:
-                vad = self.vad_q.get_nowait()
+            wav = await self.wav_q.get()
 
-                if vad == "start":
-                    count += 1
-                    speaking = True
-                    if self.talk_start is not None:
-                        overlap = time.monotonic() - self.talk_start
-                        if overlap < CONVERSATION_OVERLAP and self.vc.is_playing():
-                            self.vc.source.cleanup()
-                            self.allow_id = None
+            if self.vc is None:
+                continue
 
-                elif vad == "end":
-                    count -= 1
-                    if count <= 0:
-                        speaking = False
-                        self.blank_start = time.monotonic()
-
-            except Empty:
-                with suppress(Empty):
-                    id, w = self.wav_q.get_nowait()
-                    self.pending_wavs.append((id, w))
-
-                if self.pending_wavs:
-                    self.id, wav = self.pending_wavs[0]
-
-                    if self.allow_id is self.id:
-                        self.pending_wavs.pop(0)
-                        if isinstance(wav, bytes):
-                            return wav
-                        else:
-                            short_write(wav[0], wav[1])
-                            continue
-
-                    else:
-                        # overlap 発動 -> list が到着する前に speaking が終わり、推論が始まったときのため、nowait にしてある
-                        # speaking が続いていた場合は if speaking に入るため問題なし
-                        if isinstance(wav, list):
-                            self.pending_wavs.pop(0)
-                            self.llm.reasoning_cancel_nowait(wav[0])
-
-                if speaking:
-                    self.llm.reasoning_cancel_wait()
-
-                if self.pending_wavs:
-                    blank_time = time.monotonic() - self.blank_start
-
-                    if blank_time >= CONVERSATION_BLANK:
-                        self.allow_id = self.llm.return_id()
-                        self.id, wav = self.pending_wavs.pop(0)
-
-                        if self.allow_id is self.id:
-                            if isinstance(wav, bytes):
-                                return wav
-                            else:
-                                short_write(wav[0], wav[1])
-
+            while self.vc.is_playing():
                 await asyncio.sleep(0.01)
 
-
-    async def run(self):
-        try:
-            while True:
-                while self.vc is None:
-                    await asyncio.sleep(0.01)
-
-                wav = await self._wait()
-
-                while self.vc.is_playing():
-                    await asyncio.sleep(0.01)
-
-                origin = discord.FFmpegPCMAudio(
-                    source = io.BytesIO(wav),
-                    pipe = True,
-                    executable = str(FFMPEG_PATH)
-                    )
-                source = discord.PCMVolumeTransformer(
-                    origin,
-                    volume = 0.05
+            origin = discord.FFmpegPCMAudio(
+                source = io.BytesIO(wav),
+                pipe = True,
+                executable = str(FFMPEG_PATH)
                 )
-                self.vc.play(source)
-
-                self.talk_start = time.monotonic()
-
-        except asyncio.CancelledError:
-            pass
-
-        except Exception:   # noqa: BLE001
-            print("run: exception")
-            traceback.print_exc()
+            source = discord.PCMVolumeTransformer(
+                origin,
+                volume = 0.05
+            )
+            self.vc.play(source)
 
 
 
 class Order(commands.Cog):
-    def __init__(
-            self,
-            sources: dict[int, tuple[str, Queue]],
-            vad_q: Queue,
-            llm_core: LLM_Core,
-            wav_q: Queue
-        ):
-        self.sources = sources
-        self.player = Wav_Player(vad_q, llm_core, wav_q)
+    def __init__(self, mic: dict[int, tuple[str, Queue]], wav_q: asyncio.Queue):
+        self.mic = mic
+        self.player = Wav_Player(wav_q)
 
 
     def _start_listening(self, vc):
-        vc.listen(AudioSink(self.sources, asyncio.get_running_loop()))
+        vc.listen(AudioSink(self.mic, asyncio.get_running_loop()))
         self.player.set_vc(vc)
 
 
     @commands.command(name = "join")
     async def join(self, ctx):
         if ctx.author.voice is None:
-            await ctx.send("~joinを実行する場合はVCに入ってください")
+            await ctx.send("-joinを実行する場合はVCに入ってください")
             return
 
         channel = ctx.author.voice.channel
